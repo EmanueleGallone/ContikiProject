@@ -8,6 +8,8 @@
 #include "dev/leds.h"
 /* Resource definition */
 
+/*NB Apparently Contiki has no support for float */
+
 // float TEMPERATURE; //causes overflow
 static bool COOLER = false;
 static bool HEATER = false;
@@ -95,7 +97,7 @@ ventilation_handler(void* request, void* response, uint8_t *buffer, uint16_t pre
   leds_toggle(LEDS_GREEN);
 
   /*SETTING RESPONSE*/
-  int length = 2;
+  short int length = 2;
   char const * const message = "OK";
   memcpy(buffer, message, length);
   
@@ -112,23 +114,22 @@ PROCESS(server, "CoAP Server");
 AUTOSTART_PROCESSES(&server);
 
 PROCESS_THREAD(server, ev, data){
-  float TEMPERATURE;
+  static short int temperature = 0; //temperature variable
   static struct etimer timer;
-  float current_ratio;
-  current_ratio = 1;
-  float cooler_ratio = 0.1;
-  float heater_ratio = -0.1;
+  short int current_ratio = 0;
+  const short int cooler_ratio = -1;
+  const short int heater_ratio = 1;
 
   PROCESS_BEGIN();
   rest_init_engine();
 
-  TEMPERATURE  = ((rand() + 10) % 20);
+  temperature  = ((rand() + 10) % 20);
   rest_activate_resource(&resource_cooler);
   rest_activate_resource(&resource_heater);
   rest_activate_resource(&resource_ventilation);
 
   // we set the timer from here every time
-  etimer_set(&timer, CLOCK_CONF_SECOND);
+  etimer_set(&timer, CLOCK_CONF_SECOND*5);
 
   while(1) {
 
@@ -144,12 +145,20 @@ PROCESS_THREAD(server, ev, data){
       } else if (HEATER == true){
         current_ratio = heater_ratio;
       }
-      if (VENTILATION == true)
+      if (VENTILATION == true){
         current_ratio = current_ratio * 2;
+      }
 
-      TEMPERATURE += TEMPERATURE * current_ratio;
+      temperature += current_ratio;
+
+      if(temperature >= 30) //bounding temperature values
+        temperature = 30;
+      if (temperature <= 10)
+        temperature = 10;
+      
 
       printf("DEBUG: TEMPERATURE: \n");
+      printf("temperatura: %d \n",temperature);
 
       etimer_reset(&timer);
     }//end of if ev == PROCESS_EVENT_TIMER 
