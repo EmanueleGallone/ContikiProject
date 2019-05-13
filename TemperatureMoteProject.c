@@ -7,19 +7,8 @@
 #include "erbium.h"
 #include "dev/leds.h"
 /* Resource definition */
-/*
-#define DEBUG 0
-#if DEBUG
-#define PRINTF(...) printf(__VA_ARGS__)
-#define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
-#define PRINTLLADDR(lladdr) PRINTF("[%02x:%02x:%02x:%02x:%02x:%02x]",(lladdr)->addr[0], (lladdr)->addr[1], (lladdr)->addr[2], (lladdr)->addr[3],(lladdr)->addr[4], (lladdr)->addr[5])
-#else
-#define PRINTF(...)
-#define PRINT6ADDR(addr)
-#define PRINTLLADDR(addr)
-#endif
-*/
-static float TEMPERATURE;
+
+// float TEMPERATURE; //causes overflow
 static bool COOLER = false;
 static bool HEATER = false;
 static bool VENTILATION = false;
@@ -30,8 +19,8 @@ void
 cooler_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
 
-  int ok_length = 2;
-  int denied_length = 12;
+  short int ok_length = 2;
+  short int denied_length = 12;
   char const * const ok = "OK";
   char const * const denied = "NOT POSSIBLE";
 
@@ -45,12 +34,12 @@ cooler_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
 
   if(HEATER == false && COOLER == false){
     COOLER = true;
-    // PRINTF("(DEBUG)COOLER:" + COOLER);
+    printf("(DEBUG)COOLER:\n");
     leds_on(LEDS_BLUE);
   } else if (HEATER == false && COOLER == true)
   {
     COOLER = false;
-    // PRINTF("(DEBUG)COOLER:" + COOLER);
+    printf("(DEBUG)COOLER:\n");
     leds_off(LEDS_BLUE);
   }
 
@@ -65,8 +54,8 @@ RESOURCE(heater, METHOD_POST, "actuators/heater", "title=\"Red LED\";rt=\"Contro
 void
 heater_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
-  int ok_length = 2;
-  int denied_length = 12;
+  short int ok_length = 2;
+  short int denied_length = 12;
   char const * const ok = "OK";
   char const * const denied = "NOT POSSIBLE";
   
@@ -81,12 +70,12 @@ heater_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
   
   if(COOLER == false && HEATER == false){
     HEATER = true;
-    // PRINTF("(DEBUG)HEATER:" + HEATER);
+    printf("(DEBUG)HEATER:\n");
     leds_on(LEDS_RED);
   } else if (COOLER == false && HEATER == true)
   {
     HEATER = false;
-    // PRINTF("(DEBUG)HEATER:" + HEATER);
+    printf("(DEBUG)HEATER:\n");
     leds_off(LEDS_RED);
   }
 
@@ -102,7 +91,7 @@ void
 ventilation_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
   VENTILATION = !VENTILATION;
-  // PRINTF("(DEBUG)VENTILATION:" + VENTILATION);
+  printf("(DEBUG)VENTILATION:\n");
   leds_toggle(LEDS_GREEN);
 
   /*SETTING RESPONSE*/
@@ -123,16 +112,17 @@ PROCESS(server, "CoAP Server");
 AUTOSTART_PROCESSES(&server);
 
 PROCESS_THREAD(server, ev, data){
-
+  float TEMPERATURE;
   static struct etimer timer;
-  float current_ratio = 1;
+  float current_ratio;
+  current_ratio = 1;
   float cooler_ratio = 0.1;
   float heater_ratio = -0.1;
 
   PROCESS_BEGIN();
   rest_init_engine();
 
-  TEMPERATURE  = (rand() + 10) % 20;
+  TEMPERATURE  = ((rand() + 10) % 20);
   rest_activate_resource(&resource_cooler);
   rest_activate_resource(&resource_heater);
   rest_activate_resource(&resource_ventilation);
@@ -157,7 +147,7 @@ PROCESS_THREAD(server, ev, data){
       if (VENTILATION == true)
         current_ratio = current_ratio * 2;
 
-      // TEMPERATURE += TEMPERATURE * current_ratio;
+      TEMPERATURE += TEMPERATURE * current_ratio;
 
       printf("DEBUG: TEMPERATURE: \n");
 
