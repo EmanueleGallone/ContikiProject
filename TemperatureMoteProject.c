@@ -10,7 +10,7 @@
 
 /*NB Apparently Contiki has no support for float */
 
-// float TEMPERATURE; //causes overflow
+static short int TEMPERATURE = 22;
 static bool COOLER = false;
 static bool HEATER = false;
 static bool VENTILATION = false;
@@ -114,29 +114,26 @@ PROCESS(server, "CoAP Server");
 AUTOSTART_PROCESSES(&server);
 
 PROCESS_THREAD(server, ev, data){
-  static short int temperature = 0; //temperature variable
+
+  //NB: temperature values must be static otherwise its value will not be refreshed
   static struct etimer timer;
-  short int current_ratio = 0;
-  const short int cooler_ratio = -1;
-  const short int heater_ratio = 1;
+  static short int current_ratio = 0;
+  static short int cooler_ratio = -1;
+  static short int heater_ratio = 1;
 
   PROCESS_BEGIN();
   rest_init_engine();
-
-  temperature  = ((rand() + 10) % 20);
+  
   rest_activate_resource(&resource_cooler);
   rest_activate_resource(&resource_heater);
   rest_activate_resource(&resource_ventilation);
 
-  // we set the timer from here every time
-  etimer_set(&timer, CLOCK_CONF_SECOND*5);
+  // we set the timer
+  etimer_set(&timer, CLOCK_CONF_SECOND*20);
 
   while(1) {
 
     PROCESS_WAIT_EVENT();
-
-    // // and wait until the vent we receive is the one we're waiting for
-    // PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_TIMER);
 
     if(ev == PROCESS_EVENT_TIMER){
       //update ratio
@@ -149,16 +146,14 @@ PROCESS_THREAD(server, ev, data){
         current_ratio = current_ratio * 2;
       }
 
-      temperature += current_ratio;
+     TEMPERATURE += current_ratio;
 
-      if(temperature >= 30) //bounding temperature values
-        temperature = 30;
-      if (temperature <= 10)
-        temperature = 10;
-      
+      if(TEMPERATURE >= 30) //bounding temperature values
+        TEMPERATURE = 30;
+      if (TEMPERATURE <= 10)
+        TEMPERATURE = 10;
 
-      printf("DEBUG: TEMPERATURE: \n");
-      printf("temperatura: %d \n",temperature);
+      printf("(DEBUG)temperatura: %d \n",TEMPERATURE);
 
       etimer_reset(&timer);
     }//end of if ev == PROCESS_EVENT_TIMER 
