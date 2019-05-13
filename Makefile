@@ -1,5 +1,5 @@
-all: TemperatureMoteProject
-# use this target explicitly if requried: er-plugtest-server
+CONTIKI_PROJECT = blink
+all: $(CONTIKI_PROJECT)
 
 
 # variable for this Makefile

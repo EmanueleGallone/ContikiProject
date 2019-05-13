@@ -5,9 +5,10 @@
 #include "contiki.h"
 #include "contiki-net.h"
 #include "erbium.h"
+#include "dev/leds.h"
 /* Resource definition */
-
-#define DEBUG 1
+/*
+#define DEBUG 0
 #if DEBUG
 #define PRINTF(...) printf(__VA_ARGS__)
 #define PRINT6ADDR(addr) PRINTF("[%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x]", ((uint8_t *)addr)[0], ((uint8_t *)addr)[1], ((uint8_t *)addr)[2], ((uint8_t *)addr)[3], ((uint8_t *)addr)[4], ((uint8_t *)addr)[5], ((uint8_t *)addr)[6], ((uint8_t *)addr)[7], ((uint8_t *)addr)[8], ((uint8_t *)addr)[9], ((uint8_t *)addr)[10], ((uint8_t *)addr)[11], ((uint8_t *)addr)[12], ((uint8_t *)addr)[13], ((uint8_t *)addr)[14], ((uint8_t *)addr)[15])
@@ -17,19 +18,12 @@
 #define PRINT6ADDR(addr)
 #define PRINTLLADDR(addr)
 #endif
-
-#if defined (PLATFORM_HAS_LEDS)
-#include "dev/leds.h"
-#endif
-
-#define REST_RES_COOLER 1
-static int TEMPERATURE;
+*/
+static float TEMPERATURE;
 static bool COOLER = false;
 static bool HEATER = false;
 static bool VENTILATION = false;
 
-#if defined (PLATFORM_HAS_LEDS)
-#if REST_RES_COOLER
 /* Here we say that a packet arrives, start cooling*/
 RESOURCE(cooler, METHOD_POST, "actuators/cooler", "title=\"Blue LED\";rt=\"Control\"");
 void
@@ -51,12 +45,12 @@ cooler_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
 
   if(HEATER == false && COOLER == false){
     COOLER = true;
-    PRINTF("(DEBUG)COOLER:" + COOLER);
+    // PRINTF("(DEBUG)COOLER:" + COOLER);
     leds_on(LEDS_BLUE);
   } else if (HEATER == false && COOLER == true)
   {
     COOLER = false;
-    PRINTF("(DEBUG)COOLER:" + COOLER);
+    // PRINTF("(DEBUG)COOLER:" + COOLER);
     leds_off(LEDS_BLUE);
   }
 
@@ -87,12 +81,12 @@ heater_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
   
   if(COOLER == false && HEATER == false){
     HEATER = true;
-    PRINTF("(DEBUG)HEATER:" + HEATER);
+    // PRINTF("(DEBUG)HEATER:" + HEATER);
     leds_on(LEDS_RED);
   } else if (COOLER == false && HEATER == true)
   {
     HEATER = false;
-    PRINTF("(DEBUG)HEATER:" + HEATER);
+    // PRINTF("(DEBUG)HEATER:" + HEATER);
     leds_off(LEDS_RED);
   }
 
@@ -108,7 +102,7 @@ void
 ventilation_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
   VENTILATION = !VENTILATION;
-  PRINTF("(DEBUG)VENTILATION:" + VENTILATION);
+  // PRINTF("(DEBUG)VENTILATION:" + VENTILATION);
   leds_toggle(LEDS_GREEN);
 
   /*SETTING RESPONSE*/
@@ -122,31 +116,57 @@ ventilation_handler(void* request, void* response, uint8_t *buffer, uint16_t pre
   REST.set_response_payload(response, buffer, length);
   /*END SETTING RESPONSE*/
 }
-#endif
-#endif /* PLATFORM_HAS_LEDS */
+
+/*PROCESS DEFINITION START*/
 
 PROCESS(server, "CoAP Server");
 AUTOSTART_PROCESSES(&server);
 
-
-
 PROCESS_THREAD(server, ev, data){
 
-    PROCESS_BEGIN();
-    rest_init_engine();
+  static struct etimer timer;
+  float current_ratio = 1;
+  float cooler_ratio = 0.1;
+  float heater_ratio = -0.1;
 
-    
-#if REST_RES_COOLER
+  PROCESS_BEGIN();
+  rest_init_engine();
+
   TEMPERATURE  = (rand() + 10) % 20;
   rest_activate_resource(&resource_cooler);
   rest_activate_resource(&resource_heater);
   rest_activate_resource(&resource_ventilation);
-#endif
-    while(1) {
+
+  // we set the timer from here every time
+  etimer_set(&timer, CLOCK_CONF_SECOND * 5);
+
+  while(1) {
 
     PROCESS_WAIT_EVENT();
 
-    }
-    PROCESS_END();
+    // // and wait until the vent we receive is the one we're waiting for
+    // PROCESS_WAIT_EVENT_UNTIL(ev == PROCESS_EVENT_TIMER);
 
+    if(ev == PROCESS_EVENT_TIMER){
+      //update ratio
+      if(COOLER == true){
+        current_ratio = cooler_ratio;
+      } else if (HEATER == true){
+        current_ratio = heater_ratio;
+      }
+      if (VENTILATION == true)
+        current_ratio = current_ratio * 2;
+
+      TEMPERATURE += TEMPERATURE * current_ratio;
+
+      printf("DEBUG: TEMPERATURE: \n");
+      printf("F");
+
+      etimer_reset(&timer);
+    }//end of if ev == PROCESS_EVENT_TIMER 
+
+//     //TODO: INFORM SUBSCRIBERS OF TEMPERATURE CHANGE
+  }//end of while(1)
+
+  PROCESS_END();
 }
