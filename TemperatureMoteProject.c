@@ -138,7 +138,7 @@ PROCESS_THREAD(server, ev, data){
   rest_activate_resource(&resource_ventilation);
 
   // we set the timer from here every time
-  etimer_set(&timer, CLOCK_CONF_SECOND * 5);
+  etimer_set(&timer, CLOCK_CONF_SECOND);
 
   while(1) {
 
@@ -157,10 +157,9 @@ PROCESS_THREAD(server, ev, data){
       if (VENTILATION == true)
         current_ratio = current_ratio * 2;
 
-      TEMPERATURE += TEMPERATURE * current_ratio;
+      // TEMPERATURE += TEMPERATURE * current_ratio;
 
       printf("DEBUG: TEMPERATURE: \n");
-      printf("F");
 
       etimer_reset(&timer);
     }//end of if ev == PROCESS_EVENT_TIMER 
