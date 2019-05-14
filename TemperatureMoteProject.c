@@ -16,11 +16,11 @@ static bool HEATER = false;
 static bool VENTILATION = false;
 
 /*HERE WE DEFINE THE METHOD TO RETURN THE STATUS OF THE ACTUATORS*/
-RESOURCE(status, METHOD_GET, "actuators/status", "title=\"actuators' status: ?len=0..\";rt=\"Text\"");
+RESOURCE(status, METHOD_GET, "actuators/status", "title=\"actuators' status\";rt=\"Text\"");
 void
 status_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
-  //INCOMPLETE
+  //INCOMPLETE: doesn not write the status (1 or 0) inside the messages
   char *cooling = "C:" + (short int)COOLER;
   char *heating = "H:" + (short int) HEATER;
   char *ventilating = "V:" + (short int) VENTILATION;
@@ -37,15 +37,13 @@ status_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
   printf("(DEBUG) status length: %d\n", strlen(msg));
   printf("(DEBUG) msg: %s\n", msg);
   
-  REST.set_header_content_type(response, REST.type.TEXT_PLAIN); /* text/plain is the default, hence this option could be omitted. */
+  REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
   REST.set_header_etag(response, (uint8_t *) &length, 1);
   REST.set_response_payload(response, buffer, length);
 }
 
-
-
 /* Here we say that a packet arrives, start cooling*/
-RESOURCE(cooler, METHOD_POST, "actuators/cooler", "title=\"Blue LED\";rt=\"Control\"");
+RESOURCE(cooler, METHOD_POST, "actuators/cooler", "title=\"Cooling (Blue LED)\";rt=\"Control\"");
 void
 cooler_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
@@ -54,7 +52,6 @@ cooler_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
   char const * const denied = "NOT POSSIBLE";
   short int denied_length = strlen(denied);
   short int ok_length = strlen(ok);
-
 
   if(HEATER == true){ // not possible to turn on the cooler
     memcpy(buffer, denied, denied_length); //denied message
@@ -82,7 +79,7 @@ cooler_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
 }
 
 /* Here we say that a packet arrives, start heating*/
-RESOURCE(heater, METHOD_POST, "actuators/heater", "title=\"Red LED\";rt=\"Control\"");
+RESOURCE(heater, METHOD_POST, "actuators/heater", "title=\"Heater (Red LED)\";rt=\"Control\"");
 void
 heater_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
@@ -119,7 +116,7 @@ heater_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
 }// end of heater_handler
 
 /* Here we say that a packet arrives, start ventilating*/
-RESOURCE(ventilation, METHOD_POST, "actuators/ventilation", "title=\"Green LED\";rt=\"Control\"");
+RESOURCE(ventilation, METHOD_POST, "actuators/ventilation", "title=\"Ventilation (Green LED)\";rt=\"Control\"");
 void
 ventilation_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
@@ -139,6 +136,40 @@ ventilation_handler(void* request, void* response, uint8_t *buffer, uint16_t pre
   /*END SETTING RESPONSE*/
 }
 
+// PERIODIC_RESOURCE(pushing, METHOD_GET, "temperature", "title=\"Temperature observer\";obs", 5*CLOCK_SECOND);
+// //INCOMPLETE
+// void
+// pushing_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
+// {
+//   REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
+
+//   /* Usually, a CoAP server would response with the resource representation matching the periodic_handler. */
+//   char *msg;
+//   sprintf(msg, "%d", TEMPERATURE); //
+//   REST.set_response_payload(response, msg, strlen(msg));
+// }
+
+// /* A post_handler that handles subscriptions will be called for periodic resources by the REST framework. */
+// void
+// pushing_periodic_handler(resource_t *r)
+// {
+//   static uint16_t obs_counter = 0;
+//   static char content[11];
+
+//   ++obs_counter;
+
+//   printf("TICK %u for /%s\n", obs_counter, r->url);
+
+//   /* Build notification. */
+//   coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
+//   coap_init_message(notification, COAP_TYPE_NON, REST.status.OK, 0 );
+//   coap_set_payload(notification, content, snprintf(content, sizeof(content), "TICK %u", obs_counter));
+
+//   /* Notify the registered observers with the given message type, observe option, and payload. */
+//   REST.notify_subscribers(r, obs_counter, notification);
+// }
+
+
 /*PROCESS DEFINITION START*/
 
 PROCESS(server, "CoAP Server");
@@ -149,6 +180,7 @@ PROCESS_THREAD(update_temperature, ev, data){
   
   static struct etimer timer;
 
+  //NB: temperature values must be static otherwise its value will not be refreshed
   static short int current_ratio = 0;
   static short int cooler_ratio = -1;
   static short int heater_ratio = 1;
@@ -191,7 +223,6 @@ PROCESS_THREAD(update_temperature, ev, data){
 
 PROCESS_THREAD(server, ev, data){
 
-  //NB: temperature values must be static otherwise its value will not be refreshed
   static struct etimer timer;
 
   PROCESS_BEGIN();
@@ -201,6 +232,8 @@ PROCESS_THREAD(server, ev, data){
   rest_activate_resource(&resource_heater);
   rest_activate_resource(&resource_ventilation);
   rest_activate_resource(&resource_status);
+
+  // rest_activate_periodic_resource(&periodic_resource_pushing);
 
   // we set the timer
   etimer_set(&timer, CLOCK_CONF_SECOND*5);

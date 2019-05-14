@@ -1,6 +1,5 @@
-CONTIKI_PROJECT = blink
+CONTIKI_PROJECT = TemperatureMoteProject
 all: $(CONTIKI_PROJECT)
-
 
 # variable for this Makefile
 # configure CoAP implementation (3|7|12|13) (er-coap-07 also supports CoAP draft 08)
