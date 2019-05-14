@@ -6,6 +6,7 @@
 #include "contiki-net.h"
 #include "erbium.h"
 #include "dev/leds.h"
+#include "er-coap-13.h"
 /* Resource definition */
 
 /*NB Apparently Contiki has no support for float */
@@ -136,38 +137,38 @@ ventilation_handler(void* request, void* response, uint8_t *buffer, uint16_t pre
   /*END SETTING RESPONSE*/
 }
 
-// PERIODIC_RESOURCE(pushing, METHOD_GET, "temperature", "title=\"Temperature observer\";obs", 5*CLOCK_SECOND);
-// //INCOMPLETE
-// void
-// pushing_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
-// {
-//   REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
+PERIODIC_RESOURCE(pushing, METHOD_GET, "temperature", "title=\"Temperature observer\";obs", 5*CLOCK_SECOND);
+//INCOMPLETE
+void
+pushing_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
+{
+  REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
 
-//   /* Usually, a CoAP server would response with the resource representation matching the periodic_handler. */
-//   char *msg;
-//   sprintf(msg, "%d", TEMPERATURE); //
-//   REST.set_response_payload(response, msg, strlen(msg));
-// }
+  /* Usually, a CoAP server would response with the resource representation matching the periodic_handler. */
+  char msg[] = "";
+  sprintf(msg, "%d", TEMPERATURE);
+  REST.set_response_payload(response, msg, strlen(msg));
+}
 
-// /* A post_handler that handles subscriptions will be called for periodic resources by the REST framework. */
-// void
-// pushing_periodic_handler(resource_t *r)
-// {
-//   static uint16_t obs_counter = 0;
-//   static char content[11];
+/* A post_handler that handles subscriptions will be called for periodic resources by the REST framework. */
+void
+pushing_periodic_handler(resource_t *r)
+{
+  static uint16_t obs_counter = 0;
+  static char content[11];
 
-//   ++obs_counter;
+  ++obs_counter;
 
-//   printf("TICK %u for /%s\n", obs_counter, r->url);
+  printf("TICK %u for /%s\n", obs_counter, r->url);
 
-//   /* Build notification. */
-//   coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
-//   coap_init_message(notification, COAP_TYPE_NON, REST.status.OK, 0 );
-//   coap_set_payload(notification, content, snprintf(content, sizeof(content), "TICK %u", obs_counter));
+  /* Build notification. */
+  coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
+  coap_init_message(notification, COAP_TYPE_NON, REST.status.OK, 0 );
+  coap_set_payload(notification, content, snprintf(content, sizeof(content), "TICK %u", obs_counter));
 
-//   /* Notify the registered observers with the given message type, observe option, and payload. */
-//   REST.notify_subscribers(r, obs_counter, notification);
-// }
+  /* Notify the registered observers with the given message type, observe option, and payload. */
+  REST.notify_subscribers(r, obs_counter, notification);
+}
 
 
 /*PROCESS DEFINITION START*/
@@ -233,7 +234,8 @@ PROCESS_THREAD(server, ev, data){
   rest_activate_resource(&resource_ventilation);
   rest_activate_resource(&resource_status);
 
-  // rest_activate_periodic_resource(&periodic_resource_pushing);
+  //this will be used for informing client of current temperature
+  rest_activate_periodic_resource(&periodic_resource_pushing);
 
   // we set the timer
   etimer_set(&timer, CLOCK_CONF_SECOND*5);
@@ -248,7 +250,6 @@ PROCESS_THREAD(server, ev, data){
       etimer_reset(&timer);
     }
 
-//     //TODO: INFORM SUBSCRIBERS OF TEMPERATURE CHANGE
   }//end of while(1)
 
   PROCESS_END();
