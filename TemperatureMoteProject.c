@@ -149,7 +149,8 @@ pushing_handler(void* request, void* response, uint8_t *buffer, uint16_t preferr
   /* Usually, a CoAP server would response with the resource representation matching the periodic_handler. */
   char msg[] = "";
   sprintf(msg, "%d", TEMPERATURE);
-  REST.set_response_payload(response, msg, strlen(msg));
+  memcpy(buffer, msg, strlen(msg));
+  REST.set_response_payload(response, buffer, strlen(msg));
 }
 
 /* A post_handler that handles subscriptions will be called for periodic resources by the REST framework. */
@@ -166,7 +167,7 @@ pushing_periodic_handler(resource_t *r)
   /* Build notification. */
   coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
   coap_init_message(notification, COAP_TYPE_NON, REST.status.OK, 0 );
-  coap_set_payload(notification, content, snprintf(content, sizeof(content), "TICK %u", obs_counter));
+  coap_set_payload(notification, content, snprintf(content, sizeof(content), "Temp %d", TEMPERATURE));
 
   /* Notify the registered observers with the given message type, observe option, and payload. */
   REST.notify_subscribers(r, obs_counter, notification);
