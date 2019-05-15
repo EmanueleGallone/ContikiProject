@@ -15,6 +15,8 @@ static short int TEMPERATURE = 22;
 static bool COOLER = false;
 static bool HEATER = false;
 static bool VENTILATION = false;
+static short int current_ratio = 0;
+static short int old_ratio = 0;
 
 /*HERE WE DEFINE THE METHOD TO RETURN THE STATUS OF THE ACTUATORS*/
 RESOURCE(status, METHOD_GET, "actuators/status", "title=\"actuators' status\";rt=\"Text\"");
@@ -35,8 +37,8 @@ status_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
   memcpy(buffer,msg,strlen(msg));
   short int length = strlen(cooling) + strlen(heating) + strlen(ventilating);
 
-  printf("(DEBUG) status length: %d\n", strlen(msg));
-  printf("(DEBUG) msg: %s\n", msg);
+  //printf("(DEBUG) status length: %d\n", strlen(msg));
+  //printf("(DEBUG) msg: %s\n", msg);
   
   REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
   REST.set_header_etag(response, (uint8_t *) &length, 1);
@@ -64,12 +66,12 @@ cooler_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
 
   if(HEATER == false && COOLER == false){
     COOLER = true;
-    printf("(DEBUG)COOLER: %d\n", COOLER);
+    //printf("(DEBUG)COOLER: %d\n", COOLER);
     leds_on(LEDS_BLUE);
   } else if (HEATER == false && COOLER == true)
   {
     COOLER = false;
-    printf("(DEBUG)COOLER: %d\n", COOLER);
+    //printf("(DEBUG)COOLER: %d\n", COOLER);
     leds_off(LEDS_BLUE);
   }
 
@@ -101,12 +103,12 @@ heater_handler(void* request, void* response, uint8_t *buffer, uint16_t preferre
   
   if(COOLER == false && HEATER == false){
     HEATER = true;
-    printf("(DEBUG)HEATER: %d\n", HEATER);
+    //printf("(DEBUG)HEATER: %d\n", HEATER);
     leds_on(LEDS_RED);
   } else if (COOLER == false && HEATER == true)
   {
     HEATER = false;
-    printf("(DEBUG)HEATER: %d\n", HEATER);
+    //printf("(DEBUG)HEATER: %d\n", HEATER);
     leds_off(LEDS_RED);
   }
 
@@ -122,7 +124,7 @@ void
 ventilation_handler(void* request, void* response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
   VENTILATION = !VENTILATION;
-  printf("(DEBUG)VENTILATION: %d\n", VENTILATION);
+  //printf("(DEBUG)VENTILATION: %d\n", VENTILATION);
   leds_toggle(LEDS_GREEN);
 
   /*SETTING RESPONSE*/
@@ -159,7 +161,7 @@ pushing_periodic_handler(resource_t *r)
 
   ++obs_counter;
 
-  printf("TICK %u for /%s\n", obs_counter, r->url);
+  //printf("TICK %u for /%s\n", obs_counter, r->url);
 
   /* Build notification. */
   coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
@@ -175,56 +177,41 @@ pushing_periodic_handler(resource_t *r)
 
 PROCESS(server, "CoAP Server");
 PROCESS(update_temperature, "Update Temperature Service");
-AUTOSTART_PROCESSES(&server, &update_temperature);
+AUTOSTART_PROCESSES(&server);
 
 PROCESS_THREAD(update_temperature, ev, data){
   
   static struct etimer timer;
+  static short int temp_update;
 
   //NB: temperature values must be static otherwise its value will not be refreshed
-  static short int current_ratio = 0;
-  static short int cooler_ratio = -1;
-  static short int heater_ratio = 1;
-  
+  etimer_set(&timer, CLOCK_CONF_SECOND * 20);
+
   PROCESS_BEGIN();
 
-  //every 20 seconds update the room's temperature
-  etimer_set(&timer, CLOCK_CONF_SECOND*20);
+   old_ratio = current_ratio;
+   temp_update = current_ratio;
 
-  while(1) {
+   PROCESS_WAIT_EVENT();
 
-    PROCESS_WAIT_EVENT();
+    if (ev == PROCESS_EVENT_TIMER) {
 
-    if(ev == PROCESS_EVENT_TIMER){
-      current_ratio = 0; //reset
-
-      //update ratio
-      if(COOLER == true){
-        current_ratio = cooler_ratio;
-      } else if (HEATER == true){
-        current_ratio = heater_ratio;
-      }
       if (VENTILATION == true){
-        current_ratio = current_ratio * 2;
+        temp_update = current_ratio * 2;
       }
-
-     TEMPERATURE += current_ratio;
-
-      if(TEMPERATURE >= 30) //bounding temperature values
-        TEMPERATURE = 30;
-      if (TEMPERATURE <= 10)
-        TEMPERATURE = 10;
-
-      etimer_reset(&timer);
-    }//end of if ev == PROCESS_EVENT_TIMER 
-  }//end of while(1)
-
+    
+      TEMPERATURE += temp_update;
+    
+  } 
   PROCESS_END();
 }//end of PROCESS_THREAD(update_temperature, ev, data)
 
 PROCESS_THREAD(server, ev, data){
 
   static struct etimer timer;
+
+  static short int cooler_ratio = -1;
+  static short int heater_ratio = 1;
 
   PROCESS_BEGIN();
   rest_init_engine();
@@ -238,7 +225,7 @@ PROCESS_THREAD(server, ev, data){
   rest_activate_periodic_resource(&periodic_resource_pushing);
 
   // we set the timer
-  etimer_set(&timer, CLOCK_CONF_SECOND*5);
+  etimer_set(&timer, CLOCK_CONF_SECOND);
 
   while(1) {
 
@@ -246,6 +233,29 @@ PROCESS_THREAD(server, ev, data){
 
     if(ev == PROCESS_EVENT_TIMER){
       printf("(DEBUG)temperatura: %d \n",TEMPERATURE);
+
+      
+
+      //update ratio
+      if(COOLER == true){
+        current_ratio = cooler_ratio;
+        process_start(&update_temperature, NULL);
+      } else if (HEATER == true){
+        current_ratio = heater_ratio;
+        process_start(&update_temperature, NULL);
+      } else {
+        current_ratio = 0; //reset
+      }
+
+      if (old_ratio != current_ratio){
+        process_exit(&update_temperature);
+      }
+ 
+
+      if(TEMPERATURE >= 30) //bounding temperature values
+        TEMPERATURE = 30;
+      if (TEMPERATURE <= 10)
+        TEMPERATURE = 10;
 
       etimer_reset(&timer);
     }
