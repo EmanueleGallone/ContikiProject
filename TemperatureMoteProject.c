@@ -26,30 +26,12 @@ RESOURCE(status, METHOD_GET, "actuators/status", "title=\"actuators' status\";rt
 void status_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
 
-  // const uint16_t *accept = NULL;
-  // int num = REST.get_header_accept(request, &accept);
-
-  // if ((num == 0) || (num && accept[0] == REST.type.TEXT_PLAIN))
-  // {
-  //   REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-  //   snprintf((char *)buffer, REST_MAX_CHUNK_SIZE, "%d", COOLER);
-
-  //   REST.set_response_payload(response, (uint8_t *)buffer, strlen((char *)buffer));
-  // }
-  //  if (num && (accept[0] == REST.type.APPLICATION_JSON))
-  // {
     /*Here we set the response type to Application-json, and send the status of the thermostat*/
     REST.set_header_content_type(response, REST.type.APPLICATION_JSON);
     snprintf((char *)buffer, REST_MAX_CHUNK_SIZE, "{\"COOLER\":%d, \"HEATER\": %d, \"VENTILATION\": %d}", COOLER, HEATER, VENTILATION);
 
     REST.set_response_payload(response, buffer, strlen((char *)buffer));
-  // }
-  // else
-  // {
-  //   REST.set_response_status(response, REST.status.NOT_ACCEPTABLE);
-  //   const char *msg = "Supporting content-types text/plain and application/json";
-  //   REST.set_response_payload(response, msg, strlen(msg));
-  // }
+
 }
 
 
@@ -85,13 +67,13 @@ void thermostat_handler(void *request, void *response, uint8_t *buffer, uint16_t
       if (HEATER == false && COOLER == false)
       {
         COOLER = true;
-        //printf("(DEBUG)COOLER: %d\n", COOLER);
+        printf("(DEBUG)COOLER: %d\n", COOLER);
         leds_on(LEDS_BLUE);
       }
       else if (HEATER == false && COOLER == true)
       {
         COOLER = false;
-        //printf("(DEBUG)COOLER: %d\n", COOLER);
+        printf("(DEBUG)COOLER: %d\n", COOLER);
         leds_off(LEDS_BLUE);
       }
 
@@ -116,13 +98,13 @@ void thermostat_handler(void *request, void *response, uint8_t *buffer, uint16_t
       if (COOLER == false && HEATER == false)
       {
         HEATER = true;
-        //printf("(DEBUG)HEATER: %d\n", HEATER);
+        printf("(DEBUG)HEATER: %d\n", HEATER);
         leds_on(LEDS_RED);
       }
       else if (COOLER == false && HEATER == true)
       {
         HEATER = false;
-        //printf("(DEBUG)HEATER: %d\n", HEATER);
+        printf("(DEBUG)HEATER: %d\n", HEATER);
         leds_off(LEDS_RED);
       }
 
@@ -134,7 +116,7 @@ void thermostat_handler(void *request, void *response, uint8_t *buffer, uint16_t
     else if (strncmp(mode, "v", len) == 0)
     {
       VENTILATION = !VENTILATION;
-      //printf("(DEBUG)VENTILATION: %d\n", VENTILATION);
+      printf("(DEBUG)VENTILATION: %d\n", VENTILATION);
       leds_toggle(LEDS_GREEN);
 
       /*SETTING RESPONSE*/
@@ -158,104 +140,8 @@ void thermostat_handler(void *request, void *response, uint8_t *buffer, uint16_t
   }
 }
 
-// /* Here we say that a packet arrives, start cooling*/
-// RESOURCE(cooler, METHOD_POST, "actuators/cooler", "title=\"Cooling (Blue LED)\";rt=\"Control\"");
-// void cooler_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
-// {
-
-//   char const *const ok = "OK";
-//   char const *const denied = "NOT POSSIBLE";
-//   short int denied_length = strlen(denied);
-//   short int ok_length = strlen(ok);
-
-//   if (HEATER == true)
-//   {                                        // not possible to turn on the cooler
-//     memcpy(buffer, denied, denied_length); //denied message
-//     REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-//     REST.set_header_etag(response, (uint8_t *)&denied_length, 1);
-//     REST.set_response_payload(response, buffer, denied_length);
-//     return;
-//   }
-
-//   if (HEATER == false && COOLER == false)
-//   {
-//     COOLER = true;
-//     //printf("(DEBUG)COOLER: %d\n", COOLER);
-//     leds_on(LEDS_BLUE);
-//   }
-//   else if (HEATER == false && COOLER == true)
-//   {
-//     COOLER = false;
-//     //printf("(DEBUG)COOLER: %d\n", COOLER);
-//     leds_off(LEDS_BLUE);
-//   }
-
-//   memcpy(buffer, ok, ok_length); //ok message
-//   REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-//   REST.set_header_etag(response, (uint8_t *)&ok_length, 1);
-//   REST.set_response_payload(response, buffer, ok_length);
-// }
-
-// /* Here we say that a packet arrives, start heating*/
-// RESOURCE(heater, METHOD_POST, "actuators/heater", "title=\"Heater (Red LED)\";rt=\"Control\"");
-// void heater_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
-// {
-//   char const *const ok = "OK";
-//   char const *const denied = "NOT POSSIBLE";
-//   short int ok_length = strlen(ok);
-//   short int denied_length = strlen(denied);
-
-//   if (COOLER == true)
-//   { // not possible to turn on the heater
-
-//     memcpy(buffer, denied, denied_length); //denied message
-//     REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-//     REST.set_header_etag(response, (uint8_t *)&denied_length, 1);
-//     REST.set_response_payload(response, buffer, denied_length);
-
-//     return;
-//   }
-
-//   if (COOLER == false && HEATER == false)
-//   {
-//     HEATER = true;
-//     //printf("(DEBUG)HEATER: %d\n", HEATER);
-//     leds_on(LEDS_RED);
-//   }
-//   else if (COOLER == false && HEATER == true)
-//   {
-//     HEATER = false;
-//     //printf("(DEBUG)HEATER: %d\n", HEATER);
-//     leds_off(LEDS_RED);
-//   }
-
-//   memcpy(buffer, ok, ok_length); //ok message
-//   REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-//   REST.set_header_etag(response, (uint8_t *)&ok_length, 1);
-//   REST.set_response_payload(response, buffer, ok_length);
-// } // end of heater_handler
-
-// /* Here we say that a packet arrives, start ventilating*/
-// RESOURCE(ventilation, METHOD_POST, "actuators/ventilation", "title=\"Ventilation (Green LED)\";rt=\"Control\"");
-// void ventilation_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
-// {
-//   VENTILATION = !VENTILATION;
-//   //printf("(DEBUG)VENTILATION: %d\n", VENTILATION);
-//   leds_toggle(LEDS_GREEN);
-
-//   /*SETTING RESPONSE*/
-//   short int length = 2;
-//   char const *const message = "OK";
-//   memcpy(buffer, message, length);
-
-//   REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
-//   REST.set_header_etag(response, (uint8_t *)&length, 1);
-//   REST.set_response_payload(response, buffer, length);
-//   /*END SETTING RESPONSE*/
-// }
 
 PERIODIC_RESOURCE(pushing, METHOD_GET, "temperature", "title=\"Temperature observer\";obs", 5 * CLOCK_SECOND);
-//INCOMPLETE
 void pushing_handler(void *request, void *response, uint8_t *buffer, uint16_t preferred_size, int32_t *offset)
 {
   REST.set_header_content_type(response, REST.type.TEXT_PLAIN);
@@ -274,8 +160,6 @@ void pushing_periodic_handler(resource_t *r)
   static char content[11];
 
   ++obs_counter;
-
-  //printf("TICK %u for /%s\n", obs_counter, r->url);
 
   /* Build notification. */
   coap_packet_t notification[1]; /* This way the packet can be treated as pointer as usual. */
@@ -332,9 +216,6 @@ PROCESS_THREAD(server, ev, data)
   PROCESS_BEGIN();
   rest_init_engine();
 
-  // rest_activate_resource(&resource_cooler);
-  // rest_activate_resource(&resource_heater);
-  // rest_activate_resource(&resource_ventilation);
   rest_activate_resource(&resource_status);
   rest_activate_resource(&resource_thermostat);
 
