@@ -226,6 +226,9 @@ PROCESS_THREAD(server, ev, data)
   etimer_set(&timer, CLOCK_CONF_SECOND);
   TEMPERATURE = rand() % (MAX_TEMP + 1 - MIN_TEMP) + MIN_TEMP;
 
+  if (TEMPERATURE < 10)
+    TEMPERATURE = 10;
+
   while (1)
   {
 
